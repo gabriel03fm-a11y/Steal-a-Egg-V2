@@ -1,790 +1,543 @@
 --=====================================================================
--- ULTIMATE COMBAT SUITE
--- Aimbot + ESP + FOV + Target System + Mobile Support
+--  AIM ASSIST + ESP (Mobile UI) - Ambiente Autorizado
+--  Autor: (você)
+--  Requisitos: API do seu ambiente de jogo (getPlayers, getPosition, etc.)
+--  Sem dependências externas.
 --=====================================================================
 
 --=====================================================================
--- 1. SERVICES
---=====================================================================
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
-local Workspace = game:GetService("Workspace")
-local Camera = Workspace.CurrentCamera
-
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-
---=====================================================================
--- 2. VARIABLES & DEFAULTS
+-- 1) CONFIGURAÇÕES PADRÃO
 --=====================================================================
 local Config = {
-    -- Aimbot
-    AimbotEnabled = false,
-    AimAssist = false,
-    AimMode = "Toggle", -- Toggle / Hold
-    AimKey = Enum.KeyCode.E,
-    AimOnlyWhenAiming = false,
-    AimOnlyVisible = true,
-    AimUseFOV = true,
-    FOVSize = 120,
-    FOVMin = 50,
-    FOVMax = 400,
-    Smoothness = 0.25,
-    Sensitivity = 1.0,
-    Prediction = 0.15,
-    PredX = 1, PredY = 1, PredZ = 1,
-    OffsetY = 0,
-    OffsetX = 0,
-    MaxDistance = 500,
-    MinDistance = 0,
-    Priority = "Closest to Cursor",
-    BodyPart = "Head",
-    IgnoreVisibility = false,
-
-    -- Target
-    TargetLock = false,
-    AutoSwitchTarget = true,
-    SwitchOnDeath = true,
-    SwitchOutOfFOV = true,
-    IgnoreTeam = true,
-    IgnoreFriends = false,
-    IgnoreNPC = true,
-    Blacklist = {},
+    -- Aim Assist
+    AimEnabled      = false,
+    FOV             = 120,      -- raio em pixels (2D)
+    MaxDistance     = 500,      -- studs/unidades
+    Smoothness      = 0.15,     -- 0..1 (menor = mais suave)
+    TargetPart      = "Head",   -- "Head" | "Torso" | "Body"
+    TeamCheck       = true,
+    IgnoreDead      = true,
 
     -- ESP
-    ESPEnabled = false,
-    BoxESP = true,
-    CornerBox = false,
-    Box3D = false,
-    SkeletonESP = false,
-    TracerESP = false,
-    HealthBar = true,
-    HealthText = true,
-    DistanceESP = true,
-    NameESP = true,
-    DisplayNameESP = false,
-    TeamESP = false,
-    ToolESP = false,
-    HeadDot = false,
-    Highlight = false,
-    Chams = false,
-    ESPMaxDistance = 1000,
-    ShowTeammates = false,
-    ShowNPCs = false,
-    BoxThickness = 1.5,
-    BoxTransparency = 0.4,
-    BoxColor = Color3.fromRGB(255, 60, 60),
-    TeamColor = Color3.fromRGB(60, 200, 255),
-    RainbowMode = false,
-    SkeletonThickness = 1.5,
-    SkeletonTransparency = 0.3,
-    SkeletonColor = Color3.fromRGB(255, 255, 255),
-    TracerOrigin = "Bottom",
-    TracerThickness = 1.5,
-    TracerColor = Color3.fromRGB(255, 255, 255),
+    EspEnabled      = false,
+    EspNames        = true,
+    EspDistance     = true,
+    EspBox          = true,
+    EspLine         = true,
+    EspHighlight    = true,
+    EspOnlyEnemies  = false,
+    EspMaxDistance  = 800,
 
-    -- Chams
-    ChamsFill = Color3.fromRGB(255, 0, 0),
-    ChamsOutline = Color3.fromRGB(255, 255, 255),
-    ChamsFillAlpha = 0.5,
-    ChamsOutlineAlpha = 0.8,
-
-    -- FOV Circle
-    FOVCircleEnabled = true,
-    FOVThickness = 2,
-    FOVTransparency = 0.5,
-    FOVFilled = false,
-    FOVColor = Color3.fromRGB(255, 255, 255),
-    FOVOnlyDuringAim = false,
-
-    -- Visual
-    CrosshairEnabled = false,
-    CrosshairStyle = "Cross", -- Cross/Dot/Circle/Four Lines
-    CrosshairSize = 12,
-    CrosshairThickness = 2,
-    CrosshairGap = 4,
-    CrosshairColor = Color3.fromRGB(0, 255, 100),
-    CrosshairTransparency = 0.2,
-
-    -- Target Indicator
-    TargetIndicator = true,
-
-    -- Misc
-    FPSCounter = false,
-    PingCounter = false,
-    AntiAFK = true,
-
-    -- Mobile
-    MobileAimBtn = true,
-    MobileLockBtn = true,
-    MobileESPBtn = false,
-    MobileFOVBtn = false,
-    MobileBtnSize = 50,
-    MobileBtnTransparency = 0.35,
+    -- Cores
+    ColorEnemy      = Color3.fromRGB(255, 60,  60),
+    ColorAlly       = Color3.fromRGB(60,  200, 255),
+    ColorLine       = Color3.fromRGB(255, 255, 255),
 }
 
-local Defaults = {}
-for k, v in pairs(Config) do Defaults[k] = v end
+--=====================================================================
+-- 2) REFERÊNCIAS DO AMBIENTE (ADAPTE À SUA API)
+--=====================================================================
+-- Estas funções devem ser substituídas pelas APIs reais do seu jogo.
+local Env = {}
 
--- Runtime state
+-- Retorna a lista de jogadores no servidor: { {name=, team=, isDead=, model=} }
+function Env.GetPlayers() return {} end
+
+-- Retorna a posição da parte do jogador (Vector3) e se é visível
+function Env.GetPartPosition(player, partName) return nil end
+
+-- Retorna a posição da câmera local
+function Env.GetCameraPosition() return Vector3.zero end
+
+-- Retorna o CFrame da câmera local
+function Env.GetCameraCFrame() return CFrame.new() end
+
+-- Retorna o viewport (largura, altura)
+function Env.GetViewportSize() return 1920, 1080 end
+
+-- Retorna a equipe do jogador local
+function Env.GetLocalTeam() return nil end
+
+-- Retorna o jogador local
+function Env.GetLocalPlayer() return nil end
+
+-- WorldToScreen: converte posição 3D em 2D na tela (x, y, onScreen)
+function Env.WorldToScreen(worldPos) return 0, 0, false end
+
+-- Move o mouse/câmera (aim). Adapte para sua API.
+function Env.MoveMouse(dx, dy) end
+
+-- Cria highlight (contorno) no modelo do jogador
+function Env.CreateHighlight(model) return nil end
+
+-- Remove highlight
+function Env.RemoveHighlight(highlight) end
+
+-- Cria desenho 2D (linha, caixa, texto). Use Drawing API ou equivalente.
+function Env.CreateDrawing(kind, props) return nil end
+
+-- Remove desenho
+function Env.RemoveDrawing(drawing) end
+
+--=====================================================================
+-- 3) ESTADO INTERNO
+--=====================================================================
 local State = {
-    CurrentTarget = nil,
-    LockedTarget = nil,
-    AimKeyDown = false,
-    Connections = {},
-    ESPObjects = {}, -- [player] = {drawings/objects}
-    Blacklist = {},
-    UI = {},
-    MobileBtns = {},
-    Notifications = {},
+    CurrentTarget   = nil,       -- referência ao jogador alvo
+    EspObjects      = {},        -- [player] = { box=, name=, dist=, line=, highlight= }
+    LastTeam        = nil,
+    Connections     = {},
+    Running         = true,
+    UI              = {},
 }
 
 --=====================================================================
--- 3. UTILITIES
+-- 4) UTILITÁRIOS
 --=====================================================================
-local function Notify(title, text, duration)
-    duration = duration or 2
-    if not State.UI.NotifFrame then return end
-    local n = Instance.new("Frame")
-    n.Size = UDim2.new(0, 260, 0, 50)
-    n.BackgroundColor3 = Color3.fromRGB(28, 28, 32)
-    n.BorderSizePixel = 0
-    n.Position = UDim2.new(0.5, -130, 1, 20)
-    n.Parent = State.UI.NotifFrame
-
-    local corner = Instance.new("UICorner", n)
-    corner.CornerRadius = UDim.new(0, 6)
-    local stroke = Instance.new("UIStroke", n)
-    stroke.Color = Color3.fromRGB(80, 80, 90)
-    stroke.Thickness = 1
-
-    local t = Instance.new("TextLabel", n)
-    t.Size = UDim2.new(1, -12, 0, 18)
-    t.Position = UDim2.new(0, 6, 0, 4)
-    t.BackgroundTransparency = 1
-    t.Text = title
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.Font = Enum.Font.GothamBold
-    t.TextSize = 13
-    t.TextXAlignment = Enum.TextXAlignment.Left
-
-    local d = Instance.new("TextLabel", n)
-    d.Size = UDim2.new(1, -12, 0, 20)
-    d.Position = UDim2.new(0, 6, 0, 22)
-    d.BackgroundTransparency = 1
-    d.Text = text
-    d.TextColor3 = Color3.fromRGB(190, 190, 200)
-    d.Font = Enum.Font.Gotham
-    d.TextSize = 11
-    d.TextXAlignment = Enum.TextXAlignment.Left
-    d.TextWrapped = true
-
-    TweenService:Create(n, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -130, 1, -70 - (#State.Notifications * 60))}):Play()
-    table.insert(State.Notifications, n)
-
-    task.delay(duration, function()
-        TweenService:Create(n, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -130, 1, 40)}):Play()
-        task.wait(0.35)
-        for i, v in ipairs(State.Notifications) do
-            if v == n then table.remove(State.Notifications, i) break end
-        end
-        n:Destroy()
-    end)
+local function isAlly(player)
+    if not Config.TeamCheck then return false end
+    local localTeam = Env.GetLocalTeam()
+    if not localTeam then return false end
+    return player.team == localTeam
 end
 
-local function GetCharacter(plr)
-    if not plr or not plr.Parent then return nil end
-    return plr.Character
-end
-
-local function GetHRP(plr)
-    local char = GetCharacter(plr)
-    if not char then return nil end
-    return char:FindFirstChild("HumanoidRootPart")
-end
-
-local function IsAlive(plr)
-    local char = GetCharacter(plr)
-    if not char then return false end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    return hum and hum.Health > 0
-end
-
-local function IsTeammate(plr)
-    if plr == LocalPlayer then return false end
-    local lp = LocalPlayer.Team
-    if not lp then return false end
-    return plr.Team == lp
-end
-
-local function IsFriend(plr)
-    return LocalPlayer:IsFriendsWith(plr.UserId)
-end
-
-local function IsBlacklisted(plr)
-    return State.Blacklist[plr.UserId] == true
-end
-
-local function IsNPC(plr)
-    return not plr:IsA("Player") or plr.Character and not plr.Character:FindFirstChildOfClass("Humanoid")
-end
-
-local function WorldToScreen(world)
-    local sp, os = Camera:WorldToViewportPoint(world)
-    return Vector2.new(sp.X, sp.Y), sp.Z > 0, os
-end
-
-local function GetDistance(plr)
-    local hrp = GetHRP(plr)
-    local lhrp = GetHRP(LocalPlayer)
-    if not hrp or not lhrp then return math.huge end
-    return (hrp.Position - lhrp.Position).Magnitude
-end
-
-local function GetBodyPart(char, part)
-    if not char then return nil end
-    if part == "Random" then
-        local parts = {"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart", "Torso"}
-        return char:FindFirstChild(parts[math.random(#parts)])
-    end
-    if part == "Closest to Cursor" then
-        -- handled by target select
-        return char:FindFirstChild("Head")
-    end
-    return char:FindFirstChild(part) or char:FindFirstChild("HumanoidRootPart")
-end
-
-local function IsVisible(plr)
-    if Config.IgnoreVisibility then return true end
-    local char = GetCharacter(plr)
-    local lhrp = GetHRP(LocalPlayer)
-    if not char or not lhrp then return false end
-    local target = GetBodyPart(char, Config.BodyPart) or char:FindFirstChild("HumanoidRootPart")
-    if not target then return false end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {char, LocalPlayer.Character, Camera}
-    local result = Workspace:Raycast(lhrp.Position, target.Position - lhrp.Position, params)
-    return result == nil
-end
-
-local function ScreenDistance(plr)
-    local hrp = GetHRP(plr)
-    if not hrp then return math.huge end
-    local sp = WorldToScreen(hrp.Position)
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    return (sp - center).Magnitude
-end
-
-local function CursorDistance(plr)
-    local hrp = GetHRP(plr)
-    if not hrp then return math.huge end
-    local sp = WorldToScreen(hrp.Position)
-    return (sp - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-end
-
---=====================================================================
--- 4. TARGET SYSTEM
---=====================================================================
-local TargetSystem = {}
-
-function TargetSystem.Valid(plr)
-    if not plr or plr == LocalPlayer then return false end
-    if not plr.Parent then return false end
-    if not IsAlive(plr) then return false end
-    if IsBlacklisted(plr) then return false end
-    if Config.IgnoreTeam and IsTeammate(plr) then return false end
-    if Config.IgnoreFriends and IsFriend(plr) then return false end
-    if Config.IgnoreNPC and IsNPC(plr) then return false end
-    local dist = GetDistance(plr)
-    if dist > Config.MaxDistance or dist < Config.MinDistance then return false end
-    if Config.AimUseFOV and ScreenDistance(plr) > Config.FOVSize then return false end
-    if Config.AimOnlyVisible and not IsVisible(plr) then return false end
+local function isValidTarget(player)
+    if not player then return false end
+    if Config.IgnoreDead and player.isDead then return false end
+    if isAlly(player) then return false end
     return true
 end
 
-function TargetSystem.GetBest()
-    local best, bestScore = nil, math.huge
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if TargetSystem.Valid(plr) then
-            local score
-            if Config.Priority == "Closest to Cursor" then
-                score = CursorDistance(plr)
-            elseif Config.Priority == "Closest Player" then
-                score = GetDistance(plr)
-            elseif Config.Priority == "Lowest Health" then
-                local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
-                score = hum and hum.Health or 9999
-            elseif Config.Priority == "Highest Health" then
-                local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
-                score = hum and (9999 - hum.Health) or 9999
-            elseif Config.Priority == "Visible First" then
-                score = IsVisible(plr) and 0 or 9999
-            else
-                score = GetDistance(plr)
-            end
-            if score < bestScore then
-                bestScore = score
-                best = plr
-            end
-        end
+local function getTargetPart(player)
+    local partName = Config.TargetPart
+    if partName == "Head" then
+        return Env.GetPartPosition(player, "Head")
+    elseif partName == "Torso" then
+        return Env.GetPartPosition(player, "Torso")
+            or Env.GetPartPosition(player, "UpperTorso")
+    else -- Body
+        return Env.GetPartPosition(player, "HumanoidRootPart")
     end
-    return best
 end
 
-function TargetSystem.Update()
-    if State.LockedTarget and TargetSystem.Valid(State.LockedTarget) and not Config.AutoSwitchTarget then
-        State.CurrentTarget = State.LockedTarget
+local function distance3D(a, b)
+    if not a or not b then return math.huge end
+    return (a - b).Magnitude
+end
+
+--=====================================================================
+-- 5) AIM ASSIST
+--=====================================================================
+local function findBestTarget()
+    local camPos   = Env.GetCameraPosition()
+    local vw, vh   = Env.GetViewportSize()
+    local cx, cy   = vw / 2, vh / 2
+
+    local best, bestDist = nil, math.huge
+    local players = Env.GetPlayers()
+
+    for _, p in ipairs(players) do
+        if not isValidTarget(p) then goto continue end
+
+        local partPos = getTargetPart(p)
+        if not partPos then goto continue end
+
+        local d3 = distance3D(camPos, partPos)
+        if d3 > Config.MaxDistance then goto continue end
+
+        local sx, sy, onScreen = Env.WorldToScreen(partPos)
+        if not onScreen then goto continue end
+
+        local dx, dy = sx - cx, sy - cy
+        local dist2D = math.sqrt(dx * dx + dy * dy)
+        if dist2D > Config.FOV then goto continue end
+
+        if dist2D < bestDist then
+            bestDist = dist2D
+            best = p
+        end
+
+        ::continue::
+    end
+
+    return best, bestDist
+end
+
+local function applyAim(target)
+    if not target then return end
+    local partPos = getTargetPart(target)
+    if not partPos then return end
+
+    local sx, sy, onScreen = Env.WorldToScreen(partPos)
+    if not onScreen then return end
+
+    local vw, vh = Env.GetViewportSize()
+    local cx, cy = vw / 2, vh / 2
+
+    -- delta em pixels, aplicando smoothness
+    local dx = (sx - cx) * Config.Smoothness
+    local dy = (sy - cy) * Config.Smoothness
+
+    Env.MoveMouse(dx, dy)
+end
+
+local function updateAim()
+    if not Config.AimEnabled then
+        State.CurrentTarget = nil
         return
     end
-    local t = TargetSystem.GetBest()
-    if State.CurrentTarget ~= t then
-        if Config.SwitchOnDeath and State.CurrentTarget and not IsAlive(State.CurrentTarget) then
-            State.CurrentTarget = t
-        elseif Config.SwitchOutOfFOV and State.CurrentTarget then
-            State.CurrentTarget = t
+
+    -- Reavalia o alvo frequentemente (atualização automática conforme movimento)
+    local target = findBestTarget()
+    State.CurrentTarget = target
+    if target then applyAim(target) end
+end
+
+--=====================================================================
+-- 6) ESP
+--=====================================================================
+local function ensureEspObject(player)
+    if State.EspObjects[player] then return State.EspObjects[player] end
+
+    local obj = {
+        box       = Config.EspBox       and Env.CreateDrawing("Square",       {}) or nil,
+        name      = Config.EspNames     and Env.CreateDrawing("Text",         {}) or nil,
+        dist      = Config.EspDistance  and Env.CreateDrawing("Text",         {}) or nil,
+        line      = Config.EspLine      and Env.CreateDrawing("Line",         {}) or nil,
+        highlight = Config.EspHighlight and Env.CreateHighlight(player.model) or nil,
+    }
+    State.EspObjects[player] = obj
+    return obj
+end
+
+local function removeEspObject(player)
+    local obj = State.EspObjects[player]
+    if not obj then return end
+    if obj.box       then Env.RemoveDrawing(obj.box) end
+    if obj.name      then Env.RemoveDrawing(obj.name) end
+    if obj.dist      then Env.RemoveDrawing(obj.dist) end
+    if obj.line      then Env.RemoveDrawing(obj.line) end
+    if obj.highlight then Env.RemoveHighlight(obj.highlight) end
+    State.EspObjects[player] = nil
+end
+
+local function updateEspObject(player, obj)
+    local isAllyPlayer = isAlly(player)
+    local color = isAllyPlayer and Config.ColorAlly or Config.ColorEnemy
+
+    -- Verifica se deve mostrar
+    local show = true
+    if Config.EspOnlyEnemies and isAllyPlayer then show = false end
+    if Config.IgnoreDead and player.isDead then show = false end
+
+    local head = Env.GetPartPosition(player, "Head")
+    local root = Env.GetPartPosition(player, "HumanoidRootPart") or head
+    if not head or not root then show = false end
+
+    local camPos = Env.GetCameraPosition()
+    local d3 = distance3D(camPos, root)
+    if d3 > Config.EspMaxDistance then show = false end
+
+    if not show then
+        if obj.box       then obj.box.Visible = false end
+        if obj.name      then obj.name.Visible = false end
+        if obj.dist      then obj.dist.Visible = false end
+        if obj.line      then obj.line.Visible = false end
+        if obj.highlight then obj.highlight.Enabled = false end
+        return
+    end
+
+    local hx, hy, onH = Env.WorldToScreen(head)
+    local rx, ry, onR = Env.WorldToScreen(root)
+    if not onH or not onR then
+        if obj.box  then obj.box.Visible = false end
+        if obj.name then obj.name.Visible = false end
+        if obj.dist then obj.dist.Visible = false end
+        if obj.line then obj.line.Visible = false end
+        return
+    end
+
+    local vw, vh = Env.GetViewportSize()
+    local cx, cy = vw / 2, vh / 2
+
+    local height = math.abs(ry - hy) * 2.2
+    local width  = height * 0.55
+
+    if obj.box then
+        obj.box.Visible = true
+        obj.box.Color   = color
+        obj.box.Size    = Vector2.new(width, height)
+        obj.box.Position = Vector2.new(rx - width / 2, ry - height / 2)
+    end
+
+    if obj.name then
+        obj.name.Visible  = true
+        obj.name.Color    = color
+        obj.name.Text     = player.name
+        obj.name.Position = Vector2.new(rx, ry - height / 2 - 16)
+        obj.name.Center   = true
+    end
+
+    if obj.dist then
+        obj.dist.Visible  = true
+        obj.dist.Color    = color
+        obj.dist.Text     = string.format("%d m", math.floor(d3))
+        obj.dist.Position = Vector2.new(rx, ry + height / 2 + 4)
+        obj.dist.Center   = true
+    end
+
+    if obj.line then
+        obj.line.Visible = true
+        obj.line.Color   = Config.ColorLine
+        obj.line.From    = Vector2.new(cx, vh)
+        obj.line.To      = Vector2.new(rx, ry)
+    end
+
+    if obj.highlight then
+        obj.highlight.Enabled    = true
+        obj.highlight.FillColor  = color
+        obj.highlight.OutlineColor = color
+    end
+end
+
+local function updateEsp()
+    local players = Env.GetPlayers()
+    local seen = {}
+
+    for _, p in ipairs(players) do
+        seen[p] = true
+        if Config.EspEnabled then
+            local obj = ensureEspObject(p)
+            updateEspObject(p, obj)
         else
-            State.CurrentTarget = t
+            removeEspObject(p)
         end
+    end
+
+    -- Limpeza de jogadores que saíram (evita memory leak)
+    for p, _ in pairs(State.EspObjects) do
+        if not seen[p] then removeEspObject(p) end
     end
 end
 
 --=====================================================================
--- 5. AIMBOT
+-- 7) UI MOBILE (compacta, arrastável, com abas)
 --=====================================================================
-local Aimbot = {}
+-- Adapte a criação de GUI à API do seu ambiente (ScreenGui, Frame, etc.)
+-- Aqui uso uma abstração genérica: Ui.New(...)
+local Ui = {}
+function Ui.New(class, props) return {Class = class, Props = props or {}} end
+function Ui.Destroy(obj) end
+function Ui.Parent(child, parent) end
+function Ui.SetProperty(obj, key, value) if obj then obj.Props[key] = value end end
 
-function Aimbot.GetAimPart(plr)
-    local char = GetCharacter(plr)
-    if not char then return nil end
-    if Config.BodyPart == "Closest to Cursor" then
-        local closest, closestDist = nil, math.huge
-        for _, name in ipairs({"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart", "Torso"}) do
-            local p = char:FindFirstChild(name)
-            if p then
-                local sp = WorldToScreen(p.Position)
-                local d = (sp - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                if d < closestDist then closestDist = d; closest = p end
-            end
+local function buildUI()
+    local gui = Ui.New("ScreenGui", {Name = "AssistUI"})
+
+    -- Botão flutuante (abre/fecha)
+    local toggle = Ui.New("TextButton", {
+        Text = "🎯",
+        Size = {60, 60},
+        Position = {20, 200},
+    })
+
+    -- Painel principal
+    local panel = Ui.New("Frame", {
+        Size = {320, 420},
+        Position = {100, 100},
+        Visible = false,
+    })
+
+    -- Cabeçalho arrastável
+    local header = Ui.New("TextButton", {
+        Text = "⚙️ Assist",
+        Size = {320, 36},
+        Position = {0, 0},
+    })
+
+    -- Sistema de abas
+    local tabs = {
+        Aim  = Ui.New("Frame", {Size = {320, 380}, Position = {0, 36}}),
+        Esp  = Ui.New("Frame", {Size = {320, 380}, Position = {0, 36}, Visible = false}),
+        Cfg  = Ui.New("Frame", {Size = {320, 380}, Position = {0, 36}, Visible = false}),
+    }
+    local tabButtons = {
+        Aim = Ui.New("TextButton", {Text = "Aim", Size = {100, 30}, Position = {0, 36}}),
+        Esp = Ui.New("TextButton", {Text = "ESP", Size = {100, 30}, Position = {105, 36}}),
+        Cfg = Ui.New("TextButton", {Text = "Cfg", Size = {100, 30}, Position = {210, 36}}),
+    }
+
+    local function selectTab(name)
+        for k, f in pairs(tabs) do Ui.SetProperty(f, "Visible", k == name) end
+    end
+
+    -- Helper: switch ON/OFF
+    local function makeSwitch(parent, label, key, onChange)
+        local btn = Ui.New("TextButton", {
+            Text = label .. ": " .. (Config[key] and "ON" or "OFF"),
+            Size = {280, 30},
+            Position = {10, 10},
+        })
+        btn.Props.OnClick = function()
+            Config[key] = not Config[key]
+            Ui.SetProperty(btn, "Text", label .. ": " .. (Config[key] and "ON" or "OFF"))
+            if onChange then onChange() end
         end
-        return closest
-    end
-    return GetBodyPart(char, Config.BodyPart)
-end
-
-function Aimbot.IsActive()
-    if not Config.AimbotEnabled and not Config.AimAssist then return false end
-    if Config.AimMode == "Hold" then return State.AimKeyDown end
-    return true
-end
-
-function Aimbot.Update(dt)
-    if not Aimbot.IsActive() then return end
-    local target = State.LockedTarget or State.CurrentTarget
-    if not target or not TargetSystem.Valid(target) then return end
-
-    local part = Aimbot.GetAimPart(target)
-    if not part then return end
-
-    -- Prediction
-    local hrp = GetHRP(target)
-    local pred = Vector3.zero
-    if hrp and Config.Prediction > 0 then
-        pred = hrp.Velocity * Config.Prediction * Vector3.new(Config.PredX, Config.PredY, Config.PredZ)
+        Ui.Parent(btn, parent)
+        return btn
     end
 
-    local aimPos = part.Position + pred + Vector3.new(Config.OffsetX, Config.OffsetY, 0)
-
-    local camCF = Camera.CFrame
-    local dir = (aimPos - camCF.Position).Unit
-    local targetCF = CFrame.new(camCF.Position, camCF.Position + dir * 100)
-
-    local smooth = 1 - math.clamp(Config.Smoothness, 0, 0.99)
-    smooth = smooth * math.clamp(Config.Sensitivity, 0.1, 3)
-    Camera.CFrame = camCF:Lerp(targetCF, math.clamp(smooth * (dt * 60), 0, 1))
-end
-
---=====================================================================
--- 6. FOV CIRCLE
---=====================================================================
-local FOVCircle = {}
-
-function FOVCircle.Init()
-    local circle = Drawing.new("Circle")
-    circle.Thickness = Config.FOVThickness
-    circle.Color = Config.FOVColor
-    circle.Transparency = Config.FOVTransparency
-    circle.Filled = Config.FOVFilled
-    circle.NumSides = 60
-    circle.Radius = Config.FOVSize
-    circle.Visible = false
-    FOVCircle.Instance = circle
-end
-
-function FOVCircle.Update()
-    if not FOVCircle.Instance then return end
-    local c = FOVCircle.Instance
-    local active = Config.FOVCircleEnabled and (Config.AimbotEnabled or Config.AimAssist)
-    if Config.FOVOnlyDuringAim then
-        active = active and Aimbot.IsActive()
-    end
-    c.Visible = active
-    c.Radius = Config.FOVSize
-    c.Thickness = Config.FOVThickness
-    c.Color = Config.FOVColor
-    c.Transparency = Config.FOVTransparency
-    c.Filled = Config.FOVFilled
-    c.Position = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-end
-
---=====================================================================
--- 7. ESP
---=====================================================================
-local ESP = {}
-ESP.Container = {} -- [player] = { box=, name=, health=... }
-
-local function createDrawing(cls, props)
-    local d = Drawing.new(cls)
-    for k, v in pairs(props or {}) do d[k] = v end
-    return d
-end
-
-local function clearESP(plr)
-    local c = ESP.Container[plr]
-    if not c then return end
-    for _, obj in pairs(c) do
-        if typeof(obj) == "Instance" then obj:Destroy()
-        elseif typeof(obj) == "Drawing" then obj:Remove() end
-    end
-    ESP.Container[plr] = nil
-end
-
-local function createESP(plr)
-    local c = {}
-    c.box = createDrawing("Square", {Thickness = Config.BoxThickness, Transparency = Config.BoxTransparency, Color = Config.BoxColor, Filled = false, Visible = false})
-    c.box2 = createDrawing("Square", {Thickness = Config.BoxThickness, Transparency = Config.BoxTransparency, Color = Config.BoxColor, Filled = false, Visible = false})
-    c.box3 = createDrawing("Square", {Thickness = Config.BoxThickness, Transparency = Config.BoxTransparency, Color = Config.BoxColor, Filled = false, Visible = false})
-    c.box4 = createDrawing("Square", {Thickness = Config.BoxThickness, Transparency = Config.BoxTransparency, Color = Config.BoxColor, Filled = false, Visible = false})
-
-    c.name = createDrawing("Text", {Size = 14, Center = true, Outline = true, Color = Color3.fromRGB(255,255,255), Visible = false})
-    c.dist = createDrawing("Text", {Size = 12, Center = true, Outline = true, Color = Color3.fromRGB(200,200,200), Visible = false})
-    c.healthText = createDrawing("Text", {Size = 12, Center = true, Outline = true, Color = Color3.fromRGB(0,255,100), Visible = false})
-    c.healthBarBg = createDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(0,0,0), Visible = false})
-    c.healthBar = createDrawing("Line", {Thickness = 2, Color = Color3.fromRGB(0,255,100), Visible = false})
-    c.tracer = createDrawing("Line", {Thickness = Config.TracerThickness, Color = Config.TracerColor, Transparency = 0.3, Visible = false})
-    c.headDot = createDrawing("Circle", {Radius = 3, Color = Color3.fromRGB(255,0,0), Filled = true, Visible = false})
-
-    -- Skeleton lines (15 for R15)
-    c.skeleton = {}
-    for i = 1, 15 do
-        c.skeleton[i] = createDrawing("Line", {Thickness = Config.SkeletonThickness, Color = Config.SkeletonColor, Transparency = Config.SkeletonTransparency, Visible = false})
-    end
-
-    c.highlight = nil -- set below
-
-    ESP.Container[plr] = c
-    return c
-end
-
-local function getColorFor(plr)
-    if Config.RainbowMode then
-        local t = tick() * 2
-        return Color3.fromHSV((t % 1), 1, 1)
-    end
-    if IsTeammate(plr) then return Config.TeamColor end
-    return Config.BoxColor
-end
-
-local function updateESPFor(plr)
-    local c = ESP.Container[plr]
-    if not c then c = createESP(plr) end
-
-    local visible = Config.ESPEnabled and IsAlive(plr) and plr ~= LocalPlayer
-    if visible and Config.IgnoreTeam and IsTeammate(plr) and not Config.ShowTeammates then
-        visible = false
-    end
-    if visible and GetDistance(plr) > Config.ESPMaxDistance then visible = false end
-
-    if not visible then
-        for k, v in pairs(c) do
-            if k == "skeleton" then
-                for _, line in ipairs(v) do line.Visible = false end
-            elseif k == "highlight" then
-                if v then v.Enabled = false end
-            elseif typeof(v) == "Drawing" then
-                v.Visible = false
-            end
+    -- Helper: slider
+    local function makeSlider(parent, label, key, minV, maxV, step, y)
+        local lbl = Ui.New("Text", {Text = label .. ": " .. tostring(Config[key]),
+                                    Size = {280, 20}, Position = {10, y}})
+        local sld = Ui.New("Frame", {Size = {280, 20}, Position = {10, y + 20}})
+        local knob = Ui.New("TextButton", {
+            Text = "", Size = {20, 20}, Position = {0, 0},
+        })
+        sld.Props.OnInput = function(x)
+            local ratio = math.clamp(x / 280, 0, 1)
+            local val   = minV + (maxV - minV) * ratio
+            val = math.floor(val / step + 0.5) * step
+            Config[key] = val
+            Ui.SetProperty(lbl, "Text", label .. ": " .. tostring(val))
+            Ui.SetProperty(knob, "Position", {ratio * 260, 0})
         end
-        return
+        Ui.Parent(lbl, parent); Ui.Parent(sld, parent); Ui.Parent(knob, sld)
+        return lbl, sld
     end
 
-    local char = GetCharacter(plr)
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-
-    local col = getColorFor(plr)
-    local pos, onScreen = WorldToScreen(hrp.Position)
-    if not onScreen then
-        for k, v in pairs(c) do
-            if k == "skeleton" then
-                for _, line in ipairs(v) do line.Visible = false end
-            elseif k == "highlight" then
-                if v then v.Enabled = false end
-            elseif typeof(v) == "Drawing" then
-                v.Visible = false
-            end
+    -- Helper: dropdown
+    local function makeDropdown(parent, label, key, options, y)
+        local lbl = Ui.New("Text", {Text = label .. ": " .. tostring(Config[key]),
+                                    Size = {280, 20}, Position = {10, y}})
+        local idx = 1
+        for i, v in ipairs(options) do if v == Config[key] then idx = i end end
+        local btn = Ui.New("TextButton", {
+            Text = tostring(Config[key]), Size = {280, 30}, Position = {10, y + 20},
+        })
+        btn.Props.OnClick = function()
+            idx = idx % #options + 1
+            Config[key] = options[idx]
+            Ui.SetProperty(btn, "Text", options[idx])
+            Ui.SetProperty(lbl, "Text", label .. ": " .. options[idx])
         end
-        return
+        Ui.Parent(lbl, parent); Ui.Parent(btn, parent)
+        return btn
     end
 
-    -- Box computation
-    local topPos = WorldToScreen((hrp.CFrame * CFrame.new(0, 3, 0)).Position)
-    local botPos = WorldToScreen((hrp.CFrame * CFrame.new(0, -3, 0)).Position)
-    local height = math.abs(topPos.Y - botPos.Y)
-    local width = height * 0.55
+    -- Aba AIM
+    local y = 10
+    makeSwitch(tabs.Aim, "Aim Assist", "AimEnabled", nil)
+    y = y + 40
+    makeSlider(tabs.Aim, "FOV", "FOV", 20, 500, 5, y) y = y + 50
+    makeSlider(tabs.Aim, "Distância", "MaxDistance", 10, 2000, 10, y) y = y + 50
+    makeSlider(tabs.Aim, "Smoothness", "Smoothness", 0.02, 1.0, 0.01, y) y = y + 50
+    makeDropdown(tabs.Aim, "Parte do Corpo", "TargetPart",
+                 {"Head", "Torso", "Body"}, y) y = y + 60
+    makeSwitch(tabs.Aim, "Team Check", "TeamCheck", nil) y = y + 40
+    makeSwitch(tabs.Aim, "Ignorar Mortos", "IgnoreDead", nil)
 
-    -- 2D Box
-    if Config.BoxESP and not Config.CornerBox then
-        c.box.Size = Vector2.new(width, height)
-        c.box.Position = Vector2.new(pos.X - width/2, pos.Y - height/2)
-        c.box.Color = col
-        c.box.Thickness = Config.BoxThickness
-        c.box.Transparency = Config.BoxTransparency
-        c.box.Visible = true
-        c.box2.Visible = false; c.box3.Visible = false; c.box4.Visible = false
-    elseif Config.CornerBox then
-        c.box.Visible = false
-        local cl = width * 0.25
-        local x, y = pos.X - width/2, pos.Y - height/2
-        c.box.Size = Vector2.new(cl, Config.BoxThickness)
-        c.box.Position = Vector2.new(x, y)
-        c.box.Color = col; c.box.Visible = true
-        c.box2.Size = Vector2.new(Config.BoxThickness, cl)
-        c.box2.Position = Vector2.new(x, y)
-        c.box2.Color = col; c.box2.Visible = true
-        c.box3.Size = Vector2.new(cl, Config.BoxThickness)
-        c.box3.Position = Vector2.new(x + width - cl, y + height - Config.BoxThickness)
-        c.box3.Color = col; c.box3.Visible = true
-        c.box4.Size = Vector2.new(Config.BoxThickness, cl)
-        c.box4.Position = Vector2.new(x + width - Config.BoxThickness, y + height - cl)
-        c.box4.Color = col; c.box4.Visible = true
-    else
-        c.box.Visible = false; c.box2.Visible = false; c.box3.Visible = false; c.box4.Visible = false
+    -- Aba ESP
+    y = 10
+    makeSwitch(tabs.Esp, "ESP", "EspEnabled", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Nome", "EspNames", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Distância", "EspDistance", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Caixa", "EspBox", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Linha", "EspLine", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Highlight", "EspHighlight", nil) y = y + 40
+    makeSwitch(tabs.Esp, "Somente Inimigos", "EspOnlyEnemies", nil) y = y + 40
+    makeSlider(tabs.Esp, "Dist. Máx ESP", "EspMaxDistance", 50, 3000, 50, y)
+
+    -- Aba Cfg
+    local panic = Ui.New("TextButton", {
+        Text = "🛑 DESATIVAR TUDO", Size = {280, 40}, Position = {10, 10},
+    })
+    panic.Props.OnClick = function()
+        Config.AimEnabled = false
+        Config.EspEnabled = false
+        -- limpa ESP
+        for p, _ in pairs(State.EspObjects) do removeEspObject(p) end
+    end
+    Ui.Parent(panic, tabs.Cfg)
+
+    -- Botão flutuante e header
+    toggle.Props.OnClick = function()
+        panel.Props.Visible = not panel.Props.Visible
+    end
+    header.Props.OnDrag = function(dx, dy)
+        local px, py = panel.Props.Position[1], panel.Props.Position[2]
+        panel.Props.Position = {px + dx, py + dy}
     end
 
-    -- Name
-    if Config.NameESP then
-        c.name.Text = Config.DisplayNameESP and plr.DisplayName or plr.Name
-        c.name.Position = Vector2.new(pos.X, pos.Y - height/2 - 20)
-        c.name.Color = col
-        c.name.Visible = true
-    else c.name.Visible = false end
+    -- Estrutura final
+    Ui.Parent(header, panel)
+    Ui.Parent(tabButtons.Aim, panel)
+    Ui.Parent(tabButtons.Esp, panel)
+    Ui.Parent(tabButtons.Cfg, panel)
+    for _, f in pairs(tabs) do Ui.Parent(f, panel) end
+    Ui.Parent(panel, gui)
+    Ui.Parent(toggle, gui)
 
-    -- Distance
-    if Config.DistanceESP then
-        c.dist.Text = string.format("%dm", math.floor(GetDistance(plr)))
-        c.dist.Position = Vector2.new(pos.X, pos.Y + height/2 + 4)
-        c.dist.Visible = true
-    else c.dist.Visible = false end
-
-    -- Health
-    if Config.HealthBar and hum then
-        local hp = hum.Health / hum.MaxHealth
-        local barH = height
-        local x = pos.X - width/2 - 8
-        c.healthBarBg.From = Vector2.new(x, pos.Y - barH/2)
-        c.healthBarBg.To = Vector2.new(x, pos.Y + barH/2)
-        c.healthBarBg.Visible = true
-        c.healthBar.From = Vector2.new(x, pos.Y + barH/2)
-        c.healthBar.To = Vector2.new(x, pos.Y + barH/2 - barH * hp)
-        c.healthBar.Color = Color3.fromRGB(255 * (1-hp), 255 * hp, 0)
-        c.healthBar.Visible = true
-    else
-        c.healthBarBg.Visible = false
-        c.healthBar.Visible = false
-    end
-
-    if Config.HealthText and hum then
-        c.healthText.Text = string.format("%d/%d", math.floor(hum.Health), math.floor(hum.MaxHealth))
-        c.healthText.Position = Vector2.new(pos.X, pos.Y - height/2 - 36)
-        c.healthText.Visible = true
-    else c.healthText.Visible = false end
-
-    -- Tracer
-    if Config.TracerESP then
-        local origin
-        if Config.TracerOrigin == "Bottom" then origin = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
-        elseif Config.TracerOrigin == "Top" then origin = Vector2.new(Camera.ViewportSize.X/2, 0)
-        elseif Config.TracerOrigin == "Cursor" then origin = Vector2.new(Mouse.X, Mouse.Y)
-        else origin = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2) end
-        c.tracer.From = origin
-        c.tracer.To = pos
-        c.tracer.Color = col
-        c.tracer.Thickness = Config.TracerThickness
-        c.tracer.Visible = true
-    else c.tracer.Visible = false end
-
-    -- Head dot
-    if Config.HeadDot then
-        local hp = WorldToScreen((hrp.CFrame * CFrame.new(0, 3, 0)).Position)
-        c.headDot.Position = hp
-        c.headDot.Visible = true
-    else c.headDot.Visible = false end
-
-    -- Skeleton
-    if Config.SkeletonESP and char then
-        local bones = {
-            {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
-            {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-            {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
-            {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
-            {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"},
-            {"UpperTorso", "LowerTorso"},
-        }
-        for i, bone in ipairs(bones) do
-            local p1 = char:FindFirstChild(bone[1])
-            local p2 = char:FindFirstChild(bone[2])
-            local line = c.skeleton[i]
-            if p1 and p2 then
-                local s1, on1 = WorldToScreen(p1.Position)
-                local s2, on2 = WorldToScreen(p2.Position)
-                if on1 and on2 then
-                    line.From = s1
-                    line.To = s2
-                    line.Color = col
-                    line.Thickness = Config.SkeletonThickness
-                    line.Transparency = Config.SkeletonTransparency
-                    line.Visible = true
-                else line.Visible = false end
-            else line.Visible = false end
-        end
-    else
-        for _, line in ipairs(c.skeleton) do line.Visible = false end
-    end
-
-    -- Highlight
-    if Config.Highlight or Config.Chams then
-        if not c.highlight then
-            local h = Instance.new("Highlight")
-            h.Name = "UC_Highlight"
-            h.Parent = char
-            c.highlight = h
-        end
-        c.highlight.Enabled = true
-        c.highlight.Adornee = char
-        c.highlight.FillColor = Config.ChamsFill
-        c.highlight.OutlineColor = Config.ChamsOutline
-        c.highlight.FillTransparency = Config.ChamsFillAlpha
-        c.highlight.OutlineTransparency = Config.ChamsOutlineAlpha
-    elseif c.highlight then
-        c.highlight.Enabled = false
-    end
-end
-
-function ESP.Update()
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            pcall(updateESPFor, plr)
-        end
-    end
-end
-
-function ESP.Cleanup()
-    for plr, _ in pairs(ESP.Container) do
-        clearESP(plr)
-    end
+    State.UI = {gui = gui, panel = panel, toggle = toggle, tabs = tabs}
 end
 
 --=====================================================================
--- 8. CROSSHAIR & TARGET INDICATOR
+-- 8) LOOP PRINCIPAL (otimizado: 60 FPS aproximado, sem loop duplo)
 --=====================================================================
-local Crosshair = {}
-function Crosshair.Init()
-    Crosshair.lines = {}
-    for i = 1, 4 do
-        Crosshair.lines[i] = Drawing.new("Line")
-        Crosshair.lines[i].Thickness = Config.CrosshairThickness
-        Crosshair.lines[i].Color = Config.CrosshairColor
-        Crosshair.lines[i].Visible = false
+local ACC = 0
+local AIM_INTERVAL = 0.02   -- 50 Hz para mira
+local ESP_INTERVAL = 0.05   -- 20 Hz para ESP (mais leve em mobile)
+
+-- Adapte "RunService.Heartbeat" à API do seu ambiente
+local function onHeartbeat(dt)
+    if not State.Running then return end
+
+    ACC = ACC + dt
+    if ACC >= AIM_INTERVAL then
+        updateAim()
+        ACC = 0
     end
-    Crosshair.dot = Drawing.new("Circle")
-    Crosshair.dot.Filled = true
-    Crosshair.dot.Visible = false
-    Crosshair.circle = Drawing.new("Circle")
-    Crosshair.circle.Filled = false
-    Crosshair.circle.NumSides = 40
-    Crosshair.circle.Visible = false
-end
 
-function Crosshair.Update()
-    if not Crosshair.lines then return end
-    local visible = Config.CrosshairEnabled
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
-    for _, l in ipairs(Crosshair.lines) do l.Visible = false end
-    Crosshair.dot.Visible = false
-    Crosshair.circle.Visible = false
-    if not visible then return end
-
-    local s = Config.CrosshairSize
-    local g = Config.CrosshairGap
-    local t = Config.CrosshairThickness
-    local col = Config.CrosshairColor
-
-    if Config.CrosshairStyle == "Cross" then
-        Crosshair.lines[1].From = center - Vector2.new(s + g, 0)
-        Crosshair.lines[1].To = center - Vector2.new(g, 0)
-        Crosshair.lines[2].From = center + Vector2.new(g, 0)
-        Crosshair.lines[2].To = center + Vector2.new(s + g, 0)
-        Crosshair.lines[3].From = center - Vector2.new(0, s + g)
-        Crosshair.lines[3].To = center - Vector2.new(0, g)
-        Crosshair.lines[4].From = center + Vector2.new(0, g)
-        Crosshair.lines[4].To = center + Vector2.new(0, s + g)
-        for _, l in ipairs(Crosshair.lines) do
-            l.Thickness = t; l.Color = col; l.Visible = true
-        end
-    elseif Config.CrosshairStyle == "Dot" then
-        Crosshair.dot.Position = center
-        Crosshair.dot.Radius = t
-        Crosshair.dot.Color = col
-        Crosshair.dot.Visible = true
-    elseif Config.CrosshairStyle == "Circle" then
-        Crosshair.circle.Position = center
-        Crosshair.circle.Radius = s
-        Crosshair.circle.Thickness = t
-        Crosshair.circle.Color = col
-        Crosshair.circle.Visible = true
-    elseif Config.CrosshairStyle == "Four Lines" then
-        Crosshair.lines[1].From = center - Vector2.new(s, 0)
-        Crosshair.lines[1].To = center - Vector2.new(g, 0)
-        Crosshair.lines[2].From = center + Vector2.new(g, 0)
-        Crosshair.lines[2].To = center + Vector2.new(s, 0)
-        Crosshair.lines[3].From = center - Vector2.new(0, s)
-        Crosshair.lines[3].To = center - Vector2.new(0, g)
-        Crosshair.lines[4].From = center + Vector2.new(0, g)
-        Crosshair.lines[4].To = center + Vector2.new(0, s)
-        for _, l in ipairs(Crosshair.lines) do
-            l.Thickness = t; l.Color = col; l.Visible = true
-        end
+    State.EspAcc = (State.EspAcc or 0) + dt
+    if State.EspAcc >= ESP_INTERVAL then
+        updateEsp()
+        State.EspAcc = 0
     end
 end
 
-local TargetIndicator = {}
-function TargetIndicator.Init()
-    TargetIndicator.title = createDrawing("Text", {Size = 16, Center = true, Outline = true, Color = Color3.fromRGB(255,255,255), Visible = false})
-    TargetIndicator.name = createDrawing("Text", {Size = 14, Center = true, Outline = true, Color = Color3.fromRGB(255,255,255), Visible = false})
-    TargetIndicator.info = createDrawing("Text", {Size = 12, Center = true, Outline = true, Color = Color3.fromRGB(200,200,200), Visible = false})
+-- Conecte ao evento de frame do seu ambiente:
+-- Env.Connect("Heartbeat", onHeartbeat)
+-- Guarde a conexão para limpar depois:
+table.insert(State.Connections, onHeartbeat)
+
+-- Atualiza team check automaticamente se a equipe local mudar
+-- Env.Connect("LocalTeamChanged", function() State.LastTeam = Env.GetLocalTeam() end)
+
+--=====================================================================
+-- 9) LIMPEZA / SHUTDOWN
+--=====================================================================
+local function shutdown()
+    State.Running = false
+    for p, _ in pairs(State.EspObjects) do removeEspObject(p) end
+    State.EspObjects = {}
+    if State.UI.gui then Ui.Destroy(State.UI.gui) end
+    for _, c in ipairs(State.Connections) do
+        -- Env.Disconnect(c) -- adapte
+    end
+    State.Connections = {}
 end
 
-function TargetIndicator.Update()
-    if not TargetIndicator.title then return end
-    local visible = Config.TargetIndicator
-    local t = State.CurrentTarget
-    if visible and t and IsAlive(t) then
-        local y = 30
-        TargetIndicator.title.Text = "TARGET LOCKED"
-        TargetIndicator.title.Position = Vector2.new(Camera.ViewportSize.X/2, y)
-        TargetIndicator.title.Color = Color3.fromRGB(255, 80
+--=====================================================================
+-- 10) INICIALIZAÇÃO
+--=====================================================================
+buildUI()
+
+-- Expor API pública (opcional)
+_G.Assist = {
+    Config     = Config,
+    Shutdown   = shutdown,
+    SetTarget  = function(p) State.CurrentTarget = p end,
+}
+
+return _G.Assist
